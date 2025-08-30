@@ -4,7 +4,7 @@
   "description": "Scraping Server",
   "main": "index.js",
   "scripts": {
-    "start": "echo '--- Running in EXECUTION environment ---' && ls -laR && echo '--- Now, attempting to start Node server ---' && node index.js"
+    "start": "node index.js"
   },
   "dependencies": {
     "express": "^4.19.2",
