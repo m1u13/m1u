@@ -1,7 +1,6 @@
 const express = require("express");
-const puppeteer = require("puppeteer");
+const chromium = require("chrome-aws-lambda");
 const fs = require("fs");
-const path = require("path");
 
 const app = express();
 app.use(express.json());
@@ -28,22 +27,15 @@ async function saveCookies(page) {
 
 // Puppeteer 初期化
 async function initBrowser() {
-  // Render 環境のキャッシュにインストールされた Chrome を直接指定
-  const chromePath = path.join(
-    "/opt/render/.cache/puppeteer/chrome",
-    "linux-127.0.6533.88", // バージョンは puppeteer が落としたものと合わせる
-    "chrome-linux64",
-    "chrome"
-  );
+  const executablePath = await chromium.executablePath;
 
-  browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-    ],
-    executablePath: chromePath,
+  browser = await chromium.puppeteer.launch({
+    args: chromium.args,
+    defaultViewport: chromium.defaultViewport,
+    executablePath,
+    headless: chromium.headless, // Render は headless で動かす
   });
+
   page = await browser.newPage();
   await loadCookies(page);
 }
