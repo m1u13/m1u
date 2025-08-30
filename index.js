@@ -27,10 +27,13 @@ async function saveCookies(page) {
 
 // Puppeteer 初期化
 async function initBrowser() {
-  const browser = await puppeteer.launch({
+  browser = await puppeteer.launch({
     headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    executablePath: await puppeteer.executablePath(),
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+    ],
+    executablePath: await puppeteer.executablePath(), // Puppeteer がダウンロードした Chrome を使う
   });
   page = await browser.newPage();
   await loadCookies(page);
@@ -110,7 +113,7 @@ app.delete("/cookies/clear", async (req, res) => {
 });
 
 // ========== サーバー起動 ========== //
-const PORT = 3000;
+const PORT = process.env.PORT || 5000; // Render 環境では PORT が指定される
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
