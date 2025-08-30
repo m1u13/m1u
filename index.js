@@ -1,6 +1,7 @@
 const express = require("express");
 const puppeteer = require("puppeteer");
 const fs = require("fs");
+const path = require("path");
 
 const app = express();
 app.use(express.json());
@@ -27,13 +28,21 @@ async function saveCookies(page) {
 
 // Puppeteer 初期化
 async function initBrowser() {
+  // Render 環境のキャッシュにインストールされた Chrome を直接指定
+  const chromePath = path.join(
+    "/opt/render/.cache/puppeteer/chrome",
+    "linux-127.0.6533.88", // バージョンは puppeteer が落としたものと合わせる
+    "chrome-linux64",
+    "chrome"
+  );
+
   browser = await puppeteer.launch({
     headless: true,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
     ],
-    executablePath: await puppeteer.executablePath(), // Puppeteer がダウンロードした Chrome を使う
+    executablePath: chromePath,
   });
   page = await browser.newPage();
   await loadCookies(page);
@@ -113,7 +122,7 @@ app.delete("/cookies/clear", async (req, res) => {
 });
 
 // ========== サーバー起動 ========== //
-const PORT = process.env.PORT || 5000; // Render 環境では PORT が指定される
+const PORT = process.env.PORT || 3000; // Render 環境では PORT が指定される
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
