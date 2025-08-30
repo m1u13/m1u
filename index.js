@@ -27,7 +27,11 @@ async function saveCookies(page) {
 
 // Puppeteer 初期化
 async function initBrowser() {
-  browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    executablePath: await puppeteer.executablePath(),
+  });
   page = await browser.newPage();
   await loadCookies(page);
 }
