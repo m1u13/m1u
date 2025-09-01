@@ -1,0 +1,25 @@
+services:
+	#Webサービスとして定義
+	- type: web
+		name: playwright-firefox-scraper
+		env: python
+		#⚠️ Freeプランではメモリ不足でビルド失敗や実行時エラーの可能性が非常に高いです。
+		#Stableな運用にはStandardプラン以上を強く推奨します。
+		plan: standard 
+		#ビルド時に実行するコマンド
+		buildCommand: |
+			pip install --upgrade pip
+			pip install -r requirements.txt
+			#PlaywrightのCLIを使い、FirefoxブラウザとOSの依存関係をインストール
+			python -m playwright install --with-deps firefox
+		#サーバーを起動するコマンド
+		startCommand: "uvicorn main:app --host 0.0.0.0 --port 80"
+		#Cookie保存用の永続ディスクを設定
+		disks:
+			- name: cookie-storage
+				#このパスが main.py の COOKIE_FILE_PATH と対応します
+				mountPath: /data
+				sizeGB: 1
+		#ヘルスチェック用のパス(サーバーが正常かRenderが確認するために使う)
+		healthCheckPath: /
+
