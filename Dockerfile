@@ -1,18 +1,23 @@
-# Playwrightの公式Pythonイメージを使用します。
-# 必要な依存関係やブラウザがプリインストールされています。
-FROM mcr.microsoft.com/playwright/python:v1.55.0-jammy
+FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
 
-# コンテナ内の作業ディレクトリを設定
 WORKDIR /app
 
-# 依存関係ファイルをコピーしてインストール
+# システムレベルの最適化
+RUN apt-get update && apt-get install -y \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# アプリケーションのソースコードをコピー
 COPY . .
 
-# render.comは自動でPORT環境変数を設定します。
-# uvicornがこのポートをリッスンするように設定します。
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]
+# 永続化ディスクのマウントポイントを作成
+RUN mkdir -p /app/data
 
+# 環境変数でパフォーマンス最適化
+ENV PYTHONUNBUFFERED=1
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms/playwright
+
+# ポート設定をより柔軟に
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000", "--workers", "1", "--loop", "asyncio"]
