@@ -1,6 +1,6 @@
 # Playwrightの公式Pythonイメージを使用します。
 # 必要な依存関係やブラウザがプリインストールされています。
-FROM mcr.microsoft.com/playwright/python:v1.44.0-jammy
+FROM mcr.microsoft.com/playwright/python:v1.55.0-jammy
 
 # コンテナ内の作業ディレクトリを設定
 WORKDIR /app
