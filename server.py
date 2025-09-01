@@ -1,78 +1,77 @@
-import asyncio
-import json
-import os
-from fastapi import FastAPI, Query
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi import FastAPI
+from pydantic import BaseModel
+from typing import List, Optional
 from playwright.async_api import async_playwright
-
-COOKIE_FILE = "cookies.json"
+import os, json
 
 app = FastAPI()
+COOKIE_FILE = "cookies.json"
 
-# Cookieの読み込み
+class URLRequest(BaseModel):
+    url: str
+
+class Cookie(BaseModel):
+    name: str
+    value: str
+    domain: Optional[str] = None
+    path: Optional[str] = "/"
+
+class CookiesRequest(BaseModel):
+    cookies: List[Cookie]
+
 def load_cookies():
     if os.path.exists(COOKIE_FILE):
-        with open(COOKIE_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+        try:
+            with open(COOKIE_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return []
     return []
 
-# Cookieの保存
 def save_cookies(cookies):
-    with open(COOKIE_FILE, "w", encoding="utf-8") as f:
+    tmp_file = COOKIE_FILE + ".tmp"
+    with open(tmp_file, "w", encoding="utf-8") as f:
         json.dump(cookies, f, indent=2, ensure_ascii=False)
+    os.replace(tmp_file, COOKIE_FILE)
 
-# ページを取得する関数
-async def fetch_html(url: str):
+@app.post("/scrape")
+async def scrape(request: URLRequest):
     async with async_playwright() as p:
         browser = await p.firefox.launch(headless=True)
         context = await browser.new_context()
 
-        # 既存Cookieをロード
-        stored_cookies = load_cookies()
-        if stored_cookies:
-            await context.add_cookies(stored_cookies)
+        # Cookieロード
+        cookies = load_cookies()
+        if cookies:
+            await context.add_cookies(cookies)
 
         page = await context.new_page()
         try:
-            await page.goto(url, wait_until="domcontentloaded", timeout=10000)
-        except Exception:
-            pass  # タイムアウトしても続行
+            await page.goto(request.url, wait_until="domcontentloaded", timeout=10000)
+            await page.wait_for_timeout(5000)
+            html = await page.content()
 
-        await page.wait_for_timeout(5000)  # 最大5秒待機
-        content = await page.content()
+            # Cookie取得・保存
+            cookies = await context.cookies()
+            save_cookies(cookies)
 
-        # Cookieを保存
-        cookies = await context.cookies()
-        save_cookies(cookies)
-
-        await browser.close()
-        return content
-
-
-@app.get("/fetch")
-async def fetch(url: str = Query(..., description="取得するURL")):
-    html = await fetch_html(url)
-    return PlainTextResponse(html)
-
+            return {"html": html}
+        except Exception as e:
+            return {"error": str(e)}
+        finally:
+            await browser.close()
 
 @app.get("/cookies")
-def get_cookies():
-    return JSONResponse(load_cookies())
-
+async def get_cookies():
+    return {"cookies": load_cookies()}
 
 @app.post("/cookies")
-def add_or_update_cookie(cookie: dict):
-    cookies = load_cookies()
-    # 既存のcookieを上書き
-    cookies = [c for c in cookies if not (c["name"] == cookie["name"] and c.get("domain") == cookie.get("domain"))]
-    cookies.append(cookie)
-    save_cookies(cookies)
-    return {"status": "updated", "cookie": cookie}
-
+async def set_cookies(req: CookiesRequest):
+    save_cookies([cookie.dict() for cookie in req.cookies])
+    return {"status": "saved"}
 
 @app.delete("/cookies")
-def delete_cookie(name: str, domain: str = None):
-    cookies = load_cookies()
-    new_cookies = [c for c in cookies if not (c["name"] == name and (domain is None or c.get("domain") == domain))]
-    save_cookies(new_cookies)
-    return {"status": "deleted", "name": name, "domain": domain}
+async def delete_cookies():
+    if os.path.exists(COOKIE_FILE):
+        os.remove(COOKIE_FILE)
+    return {"status": "deleted"}
